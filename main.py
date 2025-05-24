@@ -1,25 +1,40 @@
 import streamlit as st
 
-# MUST be the first Streamlit command
+# MUST be first command
 st.set_page_config(page_title="Bias Buster", page_icon="🧠", layout="wide")
 
-# Now import other libraries AFTER set_page_config
+# Now other imports
 from transformers import pipeline
 from pymongo import MongoClient
 import warnings
 from transformers.utils import logging
 
-# Suppress warnings
+# Immediately suppress warnings
 logging.set_verbosity_error()
 warnings.filterwarnings("ignore")
 
-# Rest of your code remains the same...
+# Initialize MongoDB connection early
+@st.cache_resource
+def init_db():
+    return MongoClient(st.secrets["MONGODB_URI"])
+
+# Cache model loading
 @st.cache_resource
 def load_model():
-    return pipeline(
-        "sentiment-analysis",
-        model="distilbert-base-uncased-finetuned-sst-2-english",
-        revision="af0f99b"
-    )
+    try:
+        return pipeline(
+            "sentiment-analysis",
+            model="distilbert-base-uncased-finetuned-sst-2-english",
+            revision="af0f99b"
+        )
+    except Exception as e:
+        st.error(f"Model loading failed: {str(e)}")
+        st.stop()
 
-# [Keep all other code below exactly as before]
+# Initialize components
+client = init_db()
+db = client["biasdb"]
+collection = db["headlines"]
+sentiment_pipeline = load_model()
+
+# Rest of your UI code below...
