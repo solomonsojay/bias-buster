@@ -1,40 +1,38 @@
 import streamlit as st
+import sys
+import subprocess
 
 # MUST be first command
 st.set_page_config(page_title="Bias Buster", page_icon="🧠", layout="wide")
 
-# Now other imports
-from transformers import pipeline
-from pymongo import MongoClient
-import warnings
-from transformers.utils import logging
-
-# Immediately suppress warnings
-logging.set_verbosity_error()
-warnings.filterwarnings("ignore")
-
-# Initialize MongoDB connection early
-@st.cache_resource
-def init_db():
-    return MongoClient(st.secrets["MONGODB_URI"])
-
-# Cache model loading
-@st.cache_resource
-def load_model():
+def install_packages():
+    """Ensure critical packages are installed"""
     try:
-        return pipeline(
-            "sentiment-analysis",
-            model="distilbert-base-uncased-finetuned-sst-2-english",
-            revision="af0f99b"
-        )
-    except Exception as e:
-        st.error(f"Model loading failed: {str(e)}")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", 
+                             "torch==2.3.0+cpu", "--index-url", 
+                             "https://download.pytorch.org/whl/cpu"])
+    except subprocess.CalledProcessError:
+        st.error("Failed to install PyTorch. Please check logs.")
         st.stop()
 
-# Initialize components
-client = init_db()
-db = client["biasdb"]
-collection = db["headlines"]
-sentiment_pipeline = load_model()
+# Now other imports with try-catch
+try:
+    from transformers import pipeline
+    import torch
+    from pymongo import MongoClient
+except ImportError:
+    install_packages()
+    from transformers import pipeline
+    import torch
+    from pymongo import MongoClient
 
-# Rest of your UI code below...
+# Rest of your existing code...
+@st.cache_resource
+def load_model():
+    if not torch.cuda.is_available():
+        torch.backends.quantized.engine = 'qnnpack'
+    return pipeline(
+        "sentiment-analysis",
+        model="distilbert-base-uncased-finetuned-sst-2-english",
+        revision="af0f99b"
+    )
