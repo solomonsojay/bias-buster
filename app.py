@@ -1,53 +1,35 @@
-import os
 import streamlit as st
-from dotenv import load_dotenv
 from transformers import pipeline
 from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Get MongoDB URI from environment
-uri = os.environ.get("MONGODB_URI")
+st.title("📰 Bias Buster - Sentiment Classifier")
 
-# Connect to MongoDB
+uri = os.getenv("MONGODB_URI")
 client = MongoClient(uri)
-db = client["biasdb"]
-collection = db["headlines"]
+db = client["biasbuster"]
+collection = db["sentiments"]
 
-# Load sentiment model
 sentiment_pipeline = pipeline("sentiment-analysis")
 
-# Streamlit page config
-st.set_page_config(page_title="Bias Buster", page_icon="🧠", layout="centered")
+headline = st.text_input("Enter a news headline:")
 
-# App header
-st.title("🧠 Bias Buster")
-st.subheader("Understand the sentiment behind the news you read.")
-st.markdown("Type a news headline below and click **Analyze** to see if it's Positive, Negative, or Neutral.")
-
-# Headline input
-headline = st.text_input("📰 News Headline", placeholder="e.g., The economy is booming, but only for the rich.")
-
-# Analyze button
-if st.button("🔍 Analyze Sentiment"):
-    if not headline.strip():
-        st.warning("Please enter a headline.")
-    else:
-        # Analyze the headline
+if st.button("Analyze Sentiment"):
+    if headline:
         result = sentiment_pipeline(headline)[0]
-        sentiment = result["label"]
-        confidence = result["score"]
+        st.write("Sentiment:", result["label"])
+        st.write("Confidence:", round(result["score"], 4))
 
-        # Save to MongoDB
         document = {
             "headline": headline,
-            "sentiment": sentiment,
-            "confidence": confidence
+            "sentiment": result["label"],
+            "confidence": float(result["score"])
         }
-        collection.insert_one(document)
 
-        # Show results
-        st.success(f"✅ Sentiment: **{sentiment}**")
-        st.info(f"📊 Confidence: **{confidence:.2%}**")
-        st.caption("Analysis by Hugging Face Transformers • Stored in MongoDB Atlas")
+        collection.insert_one(document)
+        st.success("Result saved to database.")
+    else:
+        st.warning("Please enter a headline.")

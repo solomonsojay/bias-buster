@@ -177,3 +177,9 @@ cython_debug/
 
 # adding env for storing user data
 .env
+
+__pycache__/
+*.py[cod]
+.cache/
+transformers_cache/
+model_cache/

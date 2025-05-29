@@ -1,31 +1,24 @@
 import os
-from dotenv import load_dotenv
-from pymongo import MongoClient
 from transformers import pipeline
+from pymongo import MongoClient
+from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
 
-# Get MongoDB URI from environment
-uri = os.environ.get("MONGODB_URI")
-
-# Connect to MongoDB
+uri = os.getenv("MONGODB_URI")
 client = MongoClient(uri)
-db = client["biasdb"]
-collection = db["headlines"]
+db = client["biasbuster"]
+collection = db["sentiments"]
 
-# Load sentiment model
-sentiment = pipeline("sentiment-analysis")
+sentiment_pipeline = pipeline("sentiment-analysis")
 
-# Analyze a sample headline
-text = "The economy is booming, but only for the rich."
-result = sentiment(text)[0]
+headline = "The economy is booming, but only for the rich."
+result = sentiment_pipeline(headline)[0]
 
-# Save to MongoDB
 document = {
-    "headline": text,
+    "headline": headline,
     "sentiment": result["label"],
-    "confidence": result["score"]
+    "confidence": float(result["score"])
 }
 
 collection.insert_one(document)
