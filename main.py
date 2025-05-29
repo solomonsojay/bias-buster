@@ -1,28 +1,32 @@
-from transformers import pipeline
+import os
+from dotenv import load_dotenv
 from pymongo import MongoClient
+from transformers import pipeline
 
-# Load Hugging Face sentiment analysis pipeline
-sentiment = pipeline("sentiment-analysis")
+# Load environment variables from .env file
+load_dotenv()
+
+# Get MongoDB URI from environment
+uri = os.environ.get("MONGODB_URI")
 
 # Connect to MongoDB
-uri = "mongodb+srv://solomonsojay:YourStrongPassword123@biasbuster.hdqbfa6.mongodb.net/?retryWrites=true&w=majority&appName=BiasBuster"
 client = MongoClient(uri)
 db = client["biasdb"]
 collection = db["headlines"]
 
-# Headline to test
-text = "The economy is booming, but only for the rich."
+# Load sentiment model
+sentiment = pipeline("sentiment-analysis")
 
-# Run sentiment analysis
+# Analyze a sample headline
+text = "The economy is booming, but only for the rich."
 result = sentiment(text)[0]
+
+# Save to MongoDB
 document = {
     "headline": text,
     "sentiment": result["label"],
     "confidence": result["score"]
 }
 
-# Insert into MongoDB
 collection.insert_one(document)
-
-# Output to console
 print("Document inserted:", document)
