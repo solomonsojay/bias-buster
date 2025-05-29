@@ -1,38 +1,28 @@
-import streamlit as st
-import sys
-import subprocess
+from transformers import pipeline
+from pymongo import MongoClient
 
-# MUST be first command
-st.set_page_config(page_title="Bias Buster", page_icon="🧠", layout="wide")
+# Load Hugging Face sentiment analysis pipeline
+sentiment = pipeline("sentiment-analysis")
 
-def install_packages():
-    """Ensure critical packages are installed"""
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", 
-                             "torch==2.3.0+cpu", "--index-url", 
-                             "https://download.pytorch.org/whl/cpu"])
-    except subprocess.CalledProcessError:
-        st.error("Failed to install PyTorch. Please check logs.")
-        st.stop()
+# Connect to MongoDB
+uri = "mongodb+srv://solomonsojay:YourStrongPassword123@biasbuster.hdqbfa6.mongodb.net/?retryWrites=true&w=majority&appName=BiasBuster"
+client = MongoClient(uri)
+db = client["biasdb"]
+collection = db["headlines"]
 
-# Now other imports with try-catch
-try:
-    from transformers import pipeline
-    import torch
-    from pymongo import MongoClient
-except ImportError:
-    install_packages()
-    from transformers import pipeline
-    import torch
-    from pymongo import MongoClient
+# Headline to test
+text = "The economy is booming, but only for the rich."
 
-# Rest of your existing code...
-@st.cache_resource
-def load_model():
-    if not torch.cuda.is_available():
-        torch.backends.quantized.engine = 'qnnpack'
-    return pipeline(
-        "sentiment-analysis",
-        model="distilbert-base-uncased-finetuned-sst-2-english",
-        revision="af0f99b"
-    )
+# Run sentiment analysis
+result = sentiment(text)[0]
+document = {
+    "headline": text,
+    "sentiment": result["label"],
+    "confidence": result["score"]
+}
+
+# Insert into MongoDB
+collection.insert_one(document)
+
+# Output to console
+print("Document inserted:", document)
